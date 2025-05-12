@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ماركت وألبان أبو علي - تسوق أفضل المنتجات الطازجة والألبان بأسعار تنافسية في مصر">
+    <meta name="keywords" content="ماركت, ألبان, منتجات طازجة, تسوق اونلاين, مصر, أبو علي">
+    <meta name="author" content="ماركت وألبان أبو علي">
+    <meta name="robots" content="index, follow">
+    <!-- Open Graph لمواقع التواصل -->
+    <meta property="og:title" content="ماركت وألبان أبو علي - تسوق الآن!">
+    <meta property="og:description" content="تسوق أفضل المنتجات الطازجة والألبان بأسعار تنافسية مع ماركت وألبان أبو علي.">
+    <meta property="og:image" content="https://via.placeholder.com/1200x630">
+    <meta property="og:url" content="https://www.abu-ali-market.com">
+    <meta property="og:type" content="website">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ماركت وألبان أبو علي - تسوق الآن!">
+    <meta name="twitter:description" content="تسوق أفضل المنتجات الطازجة والألبان بأسعار تنافسية.">
+    <meta name="twitter:image" content="https://via.placeholder.com/1200x630">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <meta name="theme-color" content="#172554">
+    <title>ماركت وألبان أبو علي</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Toastify للإشعارات -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <!-- Structured Data لـ SEO -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "GroceryStore",
+        "name": "ماركت وألبان أبو علي",
+        "description": "متجر لبيع المنتجات الطازجة والألبان بأسعار تنافسية في مصر.",
+        "url": "https://www.abu-ali-market.com",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "شارع الماركت الرئيسي",
+            "addressLocality": "القاهرة",
+            "addressCountry": "EG"
+        },
+        "telephone": "+201234567890",
+        "openingHours": "Mo-Su 08:00-22:00",
+        "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": "30.067502",
+            "longitude": "31.170358"
+        }
+    }
+    </script>
+</head>
+<body>
+    <!-- الهيدر -->
+    <header class="header">
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="container">
+                <a class="navbar-brand" href="#">
+                    <img src="https://via.placeholder.com/50" alt="شعار الماركت" class="logo">
+                    ماركت وألبان أبو علي
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item"><a class="nav-link" href="#categories" onclick="closeNavbar()">الأقسام</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#about" onclick="closeNavbar()">من نحن</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#reviews" onclick="closeNavbar()">آراء العملاء</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#cart" onclick="closeNavbar()">السلة</a></li>
+                    </ul>
+                    <div class="cart-icon ms-3">
+                        <i class="fas fa-shopping-cart fs-4"></i>
+                        <span id="cart-count" class="badge bg-danger rounded-circle">0</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <!-- شريط البحث -->
+        <div class="container my-3">
+            <div class="input-group">
+                <input type="text" id="search-input" class="form-control" placeholder="ابحث عن منتج..." aria-label="ابحث عن منتج">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- صورة هيرو -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-box">
+                <h2>طازج من إنتاج مزارعنا</h2>
+                <a href="#categories" class="btn btn-primary hero-btn">اطلب الآن</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- الأقسام -->
+    <section id="categories" class="categories py-5">
+        <h2 class="text-center mb-4"><span class="highlight-box">الأقسام</span></h2>
+        <div class="container">
+            <div class="row row-cols-2 row-cols-md-4 g-3 category-grid"></div>
+        </div>
+    </section>
+
+    <!-- المنتجات -->
+    <section id="products" class="products py-5">
+        <h2 class="text-center mb-4"><span class="highlight-box">المنتجات</span></h2>
+        <div class="container">
+            <div id="product-list" class="row row-cols-2 row-cols-md-4 g-3">
+                <p class="empty-message w-100 text-center">اختر القسم لتظهر المنتجات</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- السلة -->
+    <section id="cart" class="cart py-5">
+        <h2 class="text-center mb-4"><span class="highlight-box">سلة التسوق</span></h2>
+        <div class="container">
+            <div id="cart-items" class="mb-4"></div>
+            <p class="fw-bold text-center"><span class="highlight-box">الإجمالي: <span id="cart-total">0</span> جنيه</span></p>
+            <div class="text-center">
+                <button class="btn btn-primary" onclick="showCheckout()">إتمام الطلب</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- قسم من نحن -->
+    <section id="about" class="about py-5">
+        <div class="container">
+            <h2 class="text-center mb-4"><span class="highlight-box">من نحن</span></h2>
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center">
+                    <p>ماركت وألبان أبو علي هو وجهتك المفضلة للحصول على أفضل المنتجات الطازجة والمتنوعة. نسعى لتوفير تجربة تسوق سهلة وممتعة مع ضمان الجودة والسعر المناسب. انضم إلينا واكتشف تشكيلتنا المميزة!</p>
+                </div>
+                <div class="col-md-6">
+                    <img src="https://i.ibb.co/d04VKdJr/IMG-20250511-WA0007.jpg" alt="من نحن" class="img-fluid rounded">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- قسم الخريطة -->
+    <section id="map" class="map py-5">
+        <h2 class="text-center mb-4"><span class="highlight-box">موقعنا</span></h2>
+        <div class="container">
+            <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3453.123456789!2d31.168358315!3d30.06750281!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzDCsDA0JzAzLjAiTiAzMcKwMTAnMTMuMyJF!5e0!3m2!1sar!2seg!4v1634567891234"
+                width="100%"
+                height="400"
+                style="border:0; border-radius: 15px;"
+                allowfullscreen=""
+                loading="lazy">
+            </iframe>
+        </div>
+    </section>
+
+    <!-- قسم آراء العملاء (سلايد) -->
+    <section id="reviews" class="reviews py-5">
+        <h2 class="text-center mb-4"><span class="highlight-box">آراء العملاء</span></h2>
+        <div class="container">
+            <div id="reviewsCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    <div class="carousel-item active">
+                        <div class="review-card">
+                            <h5>أحمد محمد</h5>
+                            <p>منتجات طازجة وخدمة ممتازة! التوصيل سريع وكل شيء منظم.</p>
+                            <div class="stars">★★★★★</div>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <div class="review-card">
+                            <h5>فاطمة علي</h5>
+                            <p>أفضل ماركت للألبان والمخبوزات، الأسعار مناسبة جدًا.</p>
+                            <div class="stars">★★★★☆</div>
+                        </div>
+                    </div>
+                    <div class="carousel-item">
+                        <div class="review-card">
+                            <h5>محمود حسن</h5>
+                            <p>تجربة تسوق رائعة، المنتجات دائمًا طازجة!</p>
+                            <div class="stars">★★★★★</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#reviewsCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">السابق</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#reviewsCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">التالي</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- الفوتر -->
+    <footer class="footer py-3">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
+                    <img src="https://via.placeholder.com/50" alt="شعار الماركت" class="footer-logo mb-2">
+                    <h5>ماركت وألبان أبو علي</h5>
+                    <p>وجهتك لأفضل المنتجات الطازجة والمتنوعة بأسعار تنافسية.</p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <h5>تواصلوا معنا</h5>
+                    <p>الهاتف: <a href="tel:+201234567890" class="footer-link">01234567890</a></p>
+                    <p>البريد: <a href="mailto:info@abu-ali-market.com" class="footer-link">info@abu-ali-market.com</a></p>
+                    <div class="social-icons mt-2">
+                        <a href="#" class="footer-link me-3"><i class="fab fa-facebook-f fs-5"></i></a>
+                        <a href="#" class="footer-link me-3"><i class="fab fa-instagram fs-5"></i></a>
+                        <a href="#" class="footer-link"><i class="fab fa-whatsapp fs-5"></i></a>
+                    </div>
+                </div>
+            </div>
+            <hr class="footer-divider">
+            <p class="text-center mb-0 footer-copyright">© 2025 ماركت وألبان أبو علي. جميع الحقوق محفوظة.</p>
+        </div>
+    </footer>
+
+    <!-- زر عائم لإرسال الأوردر -->
+    <button class="floating-btn" onclick="showCheckout()">
+        <i class="fab fa-whatsapp me-2"></i> إرسال الأوردر
+    </button>
+
+    <!-- زر عائم لعرض الأقسام -->
+    <button id="show-categories-btn" class="floating-btn categories-btn">
+        <i class="fas fa-list me-2"></i> عرض الأقسام
+    </button>
+
+    <!-- نموذج الطلب -->
+    <div id="checkout" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="btn-close me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title">إتمام الطلب</h5>
+                </div>
+                <div class="modal-body">
+                    <h6 class="mb-3">تفاصيل الطلب</h6>
+                    <div id="cart-summary" class="mb-3 border p-3 rounded"></div>
+                    <p class="fw-bold"><span class="highlight-box">الإجمالي: <span id="cart-total-summary">0</span> جنيه</span></p>
+                    <hr>
+                    <h6 class="mb-3">اختر طريقة الدفع</h6>
+                    <div class="mb-3">
+                        <button class="btn btn-primary w-100" onclick="showCashForm()">الدفع عند الاستلام</button>
+                        <button class="btn btn-warning w-100 mt-2" onclick="showElectronicPaymentForm()">الدفع الإلكتروني</button>
+                    </div>
+                    <!-- نموذج الدفع عند الاستلام -->
+                    <form id="checkout-form" onsubmit="sendOrder(event)" style="display: none;">
+                        <h6 class="mb-3">بيانات العميل</h6>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">الاسم</label>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">رقم الهاتف</label>
+                            <input type="tel" class="form-control" id="phone" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="address" class="form-label">العنوان</label>
+                            <input type="text" class="form-control" id="address" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="location" class="form-label">رابط الموقع (اختياري)</label>
+                            <input type="text" class="form-control" id="location" placeholder="سيتم ملؤه تلقائيًا عند مشاركة الموقع أو أدخل رابط Google Maps يدويًا">
+                            <button type="button" class="btn btn-primary mt-2" id="locationBtn" onclick="getLocation()">مشاركة الموقع</button>
+                            <p id="location-status" class="mt-2 text-muted">لم يتم مشاركة الموقع بعد</p>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">إرسال الطلب</button>
+                    </form>
+                    <!-- نموذج الدفع الإلكتروني -->
+                    <form id="electronic-payment-form" onsubmit="sendElectronicOrder(event)" style="display: none;">
+                        <h6 class="mb-3">بيانات الدفع الإلكتروني</h6>
+                        <div class="mb-3">
+                            <p class="fw-bold">للدفع عبر فودافون كاش:</p>
+                            <p>رقم المحفظة: <strong>01234567890</strong></p>
+                            <p class="text-muted">برجاء إرسال المبلغ المطلوب إلى الرقم أعلاه.</p>
+                        </div>
+                        <div class="mb-3">
+                            <p class="fw-bold">للدفع عبر إنستا باي:</p>
+                            <p>رقم المحفظة: <strong>01298765432</strong></p>
+                            <p class="text-muted">استخدم رقم المحفظة لتحويل المبلغ عبر تطبيق إنستا باي.</p>
+                        </div>
+                        <div class="mb-3">
+                            <label for="payment-proof" class="form-label">إثبات الدفع (صورة)</label>
+                            <input type="file" class="form-control" id="payment-proof" accept="image/*" required>
+                            <p id="upload-status" class="mt-2 text-muted">لم يتم رفع أي صورة بعد</p>
+                        </div>
+                        <h6 class="mb-3">بيانات العميل</h6>
+                        <div class="mb-3">
+                            <label for="e-name" class="form-label">الاسم</label>
+                            <input type="text" class="form-control" id="e-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="e-phone" class="form-label">رقم الهاتف</label>
+                            <input type="tel" class="form-control" id="e-phone" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="e-address" class="form-label">العنوان</label>
+                            <input type="text" class="form-control" id="e-address" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="e-location" class="form-label">رابط الموقع (اختياري)</label>
+                            <input type="text" class="form-control" id="e-location" placeholder="سيتم ملؤه تلقائيًا عند مشاركة الموقع أو أدخل رابط Google Maps يدويًا">
+                            <button type="button" class="btn btn-primary mt-2" id="e-locationBtn" onclick="getLocation('e-location')">مشاركة الموقع</button>
+                            <p id="e-location-status" class="mt-2 text-muted">لم يتم مشاركة الموقع بعد</p>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">إرسال الطلب</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="/script.js"></script>
+    <!-- تسجيل Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
+        console.log('Google Analytics: Page view tracked');
+    </script>
+</body>
+</html>
