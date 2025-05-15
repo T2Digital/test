@@ -234,9 +234,19 @@ body {
     background: #0284c7;
 }
 
-.quantity-controls span {
+.quantity-controls input {
+    width: 50px;
+    text-align: center;
+    border: 2px solid #00b7eb;
+    border-radius: 10px;
     font-size: 1rem;
     color: #1f2937;
+    padding: 5px;
+}
+
+.quantity-controls input:focus {
+    outline: none;
+    box-shadow: 0 0 5px #00b7eb;
 }
 
 .product-actions .btn {
@@ -255,8 +265,9 @@ body {
 }
 
 .product-total {
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: #172554;
+    font-weight: 600;
     text-align: center;
     margin-top: 5px;
 }
