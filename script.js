@@ -1,644 +1,534 @@
-let cart = JSON.parse(localStorage.getItem('cart')) || [];
-let currentCategoryId = null;
+console.log('تهيئة الصفحة');
 
-// حفظ السلة في localStorage
-function saveCart() {
-    localStorage.setItem('cart', JSON.stringify(cart));
+// عداد الطلبات لتتبع عدد الـ fetch
+let requestCount = 0;
+
+// دالة مساعدة لـ Debounce
+function debounce(func, delay) {
+    let timeoutId;
+    return function (...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
 }
 
-// عرض الأقسام
+// التحقق من صلاحية البيانات المخزنة
+function isCacheValid(timestamp, maxAge = 5 * 60 * 1000) { // 5 دقايق
+    return Date.now() - timestamp < maxAge;
+}
+
+// جلب الأقسام
 async function displayCategories() {
+    console.log('جلب الأقسام');
     try {
+        // التحقق من الكاش
+        const cachedCategories = JSON.parse(localStorage.getItem('categoriesCache'));
+        if (cachedCategories && isCacheValid(cachedCategories.timestamp)) {
+            console.log('استخدام الأقسام من الكاش');
+            const categories = cachedCategories.data;
+            const categoryGrid = document.querySelector('.category-grid');
+            categoryGrid.innerHTML = categories.map(category => `
+                <div class="col">
+                    <div class="category-card" data-id="${category._id}" onclick="displayProductsByCategory('${category._id}')">
+                        <img src="${category.image}" alt="${category.name}" class="img-fluid">
+                        <h3>${category.name}</h3>
+                    </div>
+                </div>
+            `).join('');
+            return;
+        }
+
+        requestCount++;
+        console.log(`طلب fetch رقم: ${requestCount} إلى /api/categories`);
         const response = await fetch('/api/categories');
-        if (!response.ok) throw new Error('فشل جلب الأقسام');
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('خطأ استجابة /api/categories:', errorData);
+            throw new Error(errorData.message || `فشل جلب الأقسام (حالة: ${response.status})`);
+        }
         const categories = await response.json();
+        console.log('الأقسام:', categories);
+
+        // تخزين في الكاش
+        localStorage.setItem('categoriesCache', JSON.stringify({
+            timestamp: Date.now(),
+            data: categories
+        }));
+
         const categoryGrid = document.querySelector('.category-grid');
         categoryGrid.innerHTML = categories.map(category => `
             <div class="col">
-                <div class="category" style="background-image: url(${category.image});" onclick="filterProducts('${category._id}')">
-                    <h5>${category.name}</h5>
+                <div class="category-card" data-id="${category._id}" onclick="displayProductsByCategory('${category._id}')">
+                    <img src="${category.image}" alt="${category.name}" class="img-fluid">
+                    <h3>${category.name}</h3>
                 </div>
             </div>
         `).join('');
     } catch (error) {
-        console.error('خطأ في جلب الأقسام:', error);
+        console.error('خطأ جلب الأقسام:', error.message);
         Toastify({
-            text: 'خطأ في تحميل الأقسام!',
-            className: 'toast-error',
+            text: `خطأ جلب الأقسام: ${error.message}`,
             duration: 3000,
-            gravity: 'top',
-            position: 'center'
+            className: 'toast-error'
         }).showToast();
     }
 }
 
-// عرض المنتجات
-async function displayProducts(categoryId = null) {
-    currentCategoryId = categoryId;
-    const productList = document.getElementById('product-list');
-
+// جلب المنتجات
+async function displayProducts(searchQuery = '') {
+    console.log('جلب المنتجات', searchQuery ? `بحث: ${searchQuery}` : '');
     try {
-        const url = categoryId ? `/api/products/category/${categoryId}` : '/api/products';
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('فشل جلب المنتجات');
-        const products = await response.json();
-
-        if (products.length === 0) {
-            productList.innerHTML = `
-                <p class="empty-message w-100 text-center">اختار قسم لعرض المنتجات</p>
-            `;
-            return;
-        }
-
-        productList.innerHTML = products.map(product => {
-            const cartItem = cart.find(item => item.id === product._id);
-            const quantity = cartItem ? cartItem.quantity : 0;
-            const total = product.price * quantity;
-            return `
-                <div class="col">
-                    <div class="product">
-                        <img src="${product.image}" alt="${product.name}">
-                        <h5>${product.name}</h5>
-                        <p>${product.price} جنيه</p>
-                        <div class="product-actions">
-                            <div class="quantity-controls">
-                                <button onclick="updateQuantity('${product._id}', -1)">-</button>
-                                <span>${quantity}</span>
-                                <button onclick="updateQuantity('${product._id}', 1)">+</button>
-                            </div>
-                            <button class="btn" onclick="addToCart('${product._id}')">إضافة إلى السلة</button>
-                            ${quantity > 0 ? `<p class="product-total">الإجمالي: ${total} جنيه</p>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    } catch (error) {
-        console.error('خطأ في جلب المنتجات:', error);
-        Toastify({
-            text: 'خطأ في تحميل المنتجات!',
-            className: 'toast-error',
-            duration: 3000,
-            gravity: 'top',
-            position: 'center'
-        }).showToast();
-    }
-}
-
-// البحث عن منتجات
-async function searchProducts() {
-    const query = document.getElementById('search-input').value.trim();
-    const productList = document.getElementById('product-list');
-
-    if (!query) {
-        displayProducts(currentCategoryId);
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/products?search=${encodeURIComponent(query)}`);
-        if (!response.ok) throw new Error('فشل البحث عن المنتجات');
-        const products = await response.json();
-
-        if (products.length === 0) {
-            productList.innerHTML = `
-                <p class="empty-message w-100 text-center">لا توجد منتجات مطابقة</p>
-            `;
-            return;
-        }
-
-        productList.innerHTML = products.map(product => {
-            const cartItem = cart.find(item => item.id === product._id);
-            const quantity = cartItem ? cartItem.quantity : 0;
-            const total = product.price * quantity;
-            return `
-                <div class="col">
-                    <div class="product">
-                        <img src="${product.image}" alt="${product.name}">
-                        <h5>${product.name}</h5>
-                        <p>${product.price} جنيه</p>
-                        <div class="product-actions">
-                            <div class="quantity-controls">
-                                <button onclick="updateQuantity('${product._id}', -1)">-</button>
-                                <span>${quantity}</span>
-                                <button onclick="updateQuantity('${product._id}', 1)">+</button>
-                            </div>
-                            <button class="btn" onclick="addToCart('${product._id}')">إضافة إلى السلة</button>
-                            ${quantity > 0 ? `<p class="product-total">الإجمالي: ${total} جنيه</p>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    } catch (error) {
-        console.error('خطأ في البحث:', error);
-        Toastify({
-            text: 'خطأ في البحث عن المنتجات!',
-            className: 'toast-error',
-            duration: 3000,
-            gravity: 'top',
-            position: 'center'
-        }).showToast();
-    }
-}
-
-// تصفية المنتجات حسب القسم
-function filterProducts(categoryId) {
-    displayProducts(categoryId);
-    document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
-}
-
-// إظهار الأقسام (للزر العائم)
-function showCategories() {
-    currentCategoryId = null;
-    displayProducts();
-    document.getElementById('categories').scrollIntoView({ behavior: 'smooth' });
-}
-
-// إغلاق قائمة الهامبرغر
-function closeNavbar() {
-    const navbarCollapse = document.getElementById('navbarNav');
-    if (navbarCollapse.classList.contains('show')) {
-        bootstrap.Collapse.getInstance(navbarCollapse).hide();
-    }
-}
-
-// تحديث الكمية
-async function updateQuantity(productId, change) {
-    try {
-        const response = await fetch(`/api/products/${productId}`);
-        if (!response.ok) throw new Error('فشل جلب المنتج');
-        const product = await response.json();
-
-        let cartItem = cart.find(item => item.id === productId);
-        if (!cartItem && change > 0) {
-            cartItem = { id: productId, name: product.name, price: product.price, quantity: 0 };
-            cart.push(cartItem);
-        }
-
-        if (cartItem) {
-            cartItem.quantity = Math.max(0, cartItem.quantity + change);
-            if (cartItem.quantity === 0) {
-                cart = cart.filter(item => item.id !== productId);
+        // التحقق من الكاش (للمنتجات بدون بحث)
+        if (!searchQuery) {
+            const cachedProducts = JSON.parse(localStorage.getItem('productsCache'));
+            if (cachedProducts && isCacheValid(cachedProducts.timestamp)) {
+                console.log('استخدام المنتجات من الكاش');
+                const products = cachedProducts.data;
+                renderProducts(products);
+                return;
             }
         }
 
-        saveCart();
-        updateCart();
-        await displayProducts(currentCategoryId);
-    } catch (error) {
-        console.error('خطأ في تحديث الكمية:', error);
-        Toastify({
-            text: 'خطأ في تحديث الكمية!',
-            className: 'toast-error',
-            duration: 3000,
-            gravity: 'top',
-            position: 'center'
-        }).showToast();
-    }
-}
+        requestCount++;
+        console.log(`طلب fetch رقم: ${requestCount} إلى /api/products${searchQuery ? `?search=${searchQuery}` : ''}`);
+        const url = searchQuery ? `/api/products?search=${encodeURIComponent(searchQuery)}` : '/api/products';
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('خطأ استجابة /api/products:', errorData);
+            throw new Error(errorData.message || `فشل جلب المنتجات (حالة: ${response.status})`);
+        }
+        const products = await response.json();
+        console.log('المنتجات:', products);
 
-// إضافة إلى السلة
-async function addToCart(productId) {
-    try {
-        const response = await fetch(`/api/products/${productId}`);
-        if (!response.ok) throw new Error('فشل جلب المنتج');
-        const product = await response.json();
-
-        let cartItem = cart.find(item => item.id === productId);
-        if (!cartItem) {
-            cartItem = { id: productId, name: product.name, price: product.price, quantity: 0 };
-            cart.push(cartItem);
+        // تخزين في الكاش (للمنتجات بدون بحث)
+        if (!searchQuery) {
+            localStorage.setItem('productsCache', JSON.stringify({
+                timestamp: Date.now(),
+                data: products
+            }));
         }
 
-        cartItem.quantity += 1;
-        saveCart();
-        updateCart();
-        await displayProducts(currentCategoryId);
-
-        Toastify({
-            text: `تمت إضافة ${product.name} إلى السلة!`,
-            className: 'toast-success',
-            duration: 3000,
-            gravity: 'top',
-            position: 'center'
-        }).showToast();
+        renderProducts(products);
     } catch (error) {
-        console.error('خطأ في إضافة المنتج:', error);
+        console.error('خطأ جلب المنتجات:', error.message);
         Toastify({
-            text: 'خطأ في إضافة المنتج إلى السلة!',
-            className: 'toast-error',
+            text: `خطأ جلب المنتجات: ${error.message}`,
             duration: 3000,
-            gravity: 'top',
-            position: 'center'
+            className: 'toast-error'
         }).showToast();
     }
 }
 
-// تحديث السلة
-function updateCart() {
-    const cartItems = document.getElementById('cart-items');
-    const cartCount = document.getElementById('cart-count');
-    const cartTotal = document.getElementById('cart-total');
-
-    if (cart.length === 0) {
-        cartItems.innerHTML = `
-            <div class="empty-cart">
-                <p>السلة فارغة</p>
-                <a href="#categories" class="btn btn-shop-now">تسوق الآن</a>
-            </div>
-        `;
-        cartCount.textContent = '0';
-        cartTotal.textContent = '0';
-        return;
+// جلب منتجات قسم معين
+async function displayProductsByCategory(categoryId) {
+    console.log(`جلب منتجات قسم: ${categoryId}`);
+    try {
+        requestCount++;
+        console.log(`طلب fetch رقم: ${requestCount} إلى /api/products/category/${categoryId}`);
+        const response = await fetch(`/api/products/category/${categoryId}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error(`خطأ استجابة /api/products/category/${categoryId}:`, errorData);
+            throw new Error(errorData.message || `فشل جلب منتجات القسم (حالة: ${response.status})`);
+        }
+        const products = await response.json();
+        console.log('منتجات القسم:', products);
+        renderProducts(products);
+    } catch (error) {
+        console.error('خطأ جلب منتجات القسم:', error.message);
+        Toastify({
+            text: `خطأ جلب منتجات القسم: ${error.message}`,
+            duration: 3000,
+            className: 'toast-error'
+        }).showToast();
     }
+}
 
-    cartItems.innerHTML = cart.map(item => {
-        const total = item.price * item.quantity;
-        return `
-            <div class="cart-item">
-                <p>${item.name} - ${item.quantity} × ${item.price} = ${total} جنيه</p>
-                <div class="quantity-controls">
-                    <button onclick="updateQuantity('${item.id}', -1)">-</button>
-                    <span>${item.quantity}</span>
-                    <button onclick="updateQuantity('${item.id}', 1)">+</button>
-                    <button class="delete" onclick="removeFromCart('${item.id}')">حذف</button>
+// دالة لعرض المنتجات
+function renderProducts(products) {
+    const productList = document.getElementById('product-list');
+    productList.innerHTML = products.length > 0 ? products.map(product => `
+        <div class="col">
+            <div class="product" data-id="${product._id}">
+                <img src="${product.image}" alt="${product.name}" class="img-fluid">
+                <h5>${product.name}</h5>
+                <p class="product-price">السعر: ${product.price} جنيه</p>
+                <div class="product-actions">
+                    <div class="quantity-controls">
+                        <button onclick="updateQuantity('${product._id}', -1)">-</button>
+                        <input type="number" class="product-quantity" data-id="${product._id}" value="1" min="1">
+                        <button onclick="updateQuantity('${product._id}', 1)">+</button>
+                    </div>
+                    <button class="btn btn-primary" onclick="addToCart('${product._id}')">إضافة إلى السلة</button>
+                    <div class="product-total" data-id="${product._id}">الإجمالي: ${product.price} جنيه</div>
                 </div>
             </div>
-        `;
-    }).join('');
+        </div>
+    `).join('') : '<p class="empty-message w-100 text-center">لا توجد منتجات متاحة</p>';
 
-    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    cartCount.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+    // إضافة event listeners لتحديث الكمية يدويًا
+    document.querySelectorAll('.product-quantity').forEach(input => {
+        input.addEventListener('change', () => {
+            let quantity = parseInt(input.value);
+            if (isNaN(quantity) || quantity < 1) {
+                quantity = 1;
+                input.value = 1;
+            }
+            updateProductTotal(input.dataset.id, quantity);
+        });
+    });
+}
+
+// تحديث الكمية والإجمالي
+function updateQuantity(productId, change) {
+    const input = document.querySelector(`.product-quantity[data-id="${productId}"]`);
+    let quantity = parseInt(input.value) + change;
+    if (quantity < 1) quantity = 1;
+    input.value = quantity;
+    updateProductTotal(productId, quantity);
+}
+
+// تحديث الإجمالي التلقائي
+async function updateProductTotal(productId, quantity) {
+    try {
+        const response = await fetch(`/api/products/${productId}`);
+        if (!response.ok) {
+            throw new Error('فشل جلب بيانات المنتج');
+        }
+        const product = await response.json();
+        const total = product.price * quantity;
+        const totalElement = document.querySelector(`.product-total[data-id="${productId}"]`);
+        totalElement.textContent = `الإجمالي: ${total} جنيه`;
+    } catch (error) {
+        console.error('خطأ تحديث الإجمالي:', error.message);
+        Toastify({
+            text: `خطأ: ${error.message}`,
+            duration: 3000,
+            className: 'toast-error'
+        }).showToast();
+    }
+}
+
+// إدارة السلة
+let cart = JSON.parse(localStorage.getItem('cart')) || [];
+async function addToCart(productId) {
+    try {
+        requestCount++;
+        console.log(`طلب fetch رقم: ${requestCount} إلى /api/products/${productId}`);
+        const response = await fetch(`/api/products/${productId}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error(`خطأ استجابة /api/products/${productId}:`, errorData);
+            throw new Error(errorData.message || `فشل جلب المنتج (حالة: ${response.status})`);
+        }
+        const product = await response.json();
+        const quantityInput = document.querySelector(`.product-quantity[data-id="${productId}"]`);
+        const quantity = parseInt(quantityInput.value) || 1;
+
+        const cartItem = cart.find(item => item.product === productId);
+        if (cartItem) {
+            cartItem.quantity += quantity;
+        } else {
+            cart.push({
+                product: productId,
+                name: product.name,
+                price: product.price,
+                quantity: quantity
+            });
+        }
+        localStorage.setItem('cart', JSON.stringify(cart));
+        updateCartDisplay();
+        Toastify({
+            text: 'تمت الإضافة إلى السلة',
+            duration: 3000,
+            className: 'toast-success'
+        }).showToast();
+    } catch (error) {
+        console.error('خطأ إضافة إلى السلة:', error.message);
+        Toastify({
+            text: `خطأ: ${error.message}`,
+            duration: 3000,
+            className: 'toast-error'
+        }).showToast();
+    }
+}
+
+function updateCartDisplay() {
+    const cartItems = document.getElementById('cart-items');
+    const cartTotal = document.getElementById('cart-total');
+    const cartCount = document.getElementById('cart-count');
+    if (cart.length === 0) {
+        console.log('السلة فارغة');
+        cartItems.innerHTML = '<p class="empty-message text-center">السلة فارغة</p>';
+        cartTotal.textContent = '0';
+        cartCount.textContent = '0';
+        return;
+    }
+    cartItems.innerHTML = cart.map(item => `
+        <div class="cart-item mb-2 p-2 border rounded">
+            ${item.name} - ${item.quantity} × ${item.price} = ${item.quantity * item.price} جنيه
+            <button class="btn btn-danger btn-sm ms-2 delete" onclick="removeFromCart('${item.product}')">إزالة</button>
+        </div>
+    `).join('');
+    const total = cart.reduce((sum, item) => sum + item.quantity * item.price, 0);
     cartTotal.textContent = total;
-    saveCart();
+    cartCount.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
 }
 
-// إزالة من السلة
 function removeFromCart(productId) {
-    cart = cart.filter(item => item.id !== productId);
-    saveCart();
-    updateCart();
-    displayProducts(currentCategoryId);
-
-    Toastify({
-        text: 'تم حذف المنتج من السلة!',
-        className: 'toast-success',
-        duration: 3000,
-        gravity: 'top',
-        position: 'center'
-    }).showToast();
+    cart = cart.filter(item => item.product !== productId);
+    localStorage.setItem('cart', JSON.stringify(cart));
+    updateCartDisplay();
 }
 
-// إظهار نموذج إتمام الطلب
+// عرض نموذج الطلب
 function showCheckout() {
     if (cart.length === 0) {
         Toastify({
-            text: 'السلة فارغة، أضف منتجات أولاً!',
-            className: 'toast-error',
+            text: 'السلة فارغة، أضف منتجات أولاً',
             duration: 3000,
-            gravity: 'top',
-            position: 'center'
+            className: 'toast-error'
         }).showToast();
         return;
     }
-
     const cartSummary = document.getElementById('cart-summary');
     const cartTotalSummary = document.getElementById('cart-total-summary');
     cartSummary.innerHTML = cart.map(item => `
-        <p>${item.name} - ${item.quantity} × ${item.price} = ${item.price * item.quantity} جنيه</p>
+        <div>${item.name} - ${item.quantity} × ${item.price} = ${item.quantity * item.price} جنيه</div>
     `).join('');
-    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    cartTotalSummary.textContent = total;
-
+    cartTotalSummary.textContent = cart.reduce((sum, item) => sum + item.quantity * item.price, 0);
     document.getElementById('checkout-form').style.display = 'none';
     document.getElementById('electronic-payment-form').style.display = 'none';
-    new bootstrap.Modal(document.getElementById('checkout')).show();
+    const checkoutModal = new bootstrap.Modal(document.getElementById('checkout'));
+    checkoutModal.show();
 }
 
-// إظهار نموذج الدفع عند الاستلام
+// عرض نموذج الدفع عند الاستلام
 function showCashForm() {
     document.getElementById('checkout-form').style.display = 'block';
     document.getElementById('electronic-payment-form').style.display = 'none';
 }
 
-// إظهار نموذج الدفع الإلكتروني
+// عرض نموذج الدفع الإلكتروني
 function showElectronicPaymentForm() {
-    document.getElementById('checkout-form').style.display = 'none';
     document.getElementById('electronic-payment-form').style.display = 'block';
+    document.getElementById('checkout-form').style.display = 'none';
 }
 
-// الحصول على الموقع
-function getLocation(inputId = 'location') {
-    const statusElement = document.getElementById(`${inputId}-status`);
-
-    if (!navigator.geolocation) {
-        statusElement.textContent = 'المتصفح لا يدعم مشاركة الموقع، أدخل الرابط يدويًا';
-        Toastify({
-            text: 'المتصفح لا يدعم مشاركة الموقع!',
-            className: 'toast-error',
-            duration: 5000,
-            gravity: 'top',
-            position: 'center'
-        }).showToast();
-        return;
-    }
-
-    if (navigator.permissions) {
-        navigator.permissions.query({ name: 'geolocation' }).then(permissionStatus => {
-            if (permissionStatus.state === 'denied') {
-                statusElement.textContent = 'تم رفض إذن الموقع، يرجى تفعيله من إعدادات الجهاز';
-                Toastify({
-                    text: 'يرجى تفعيل الموقع من إعدادات iPhone: الإعدادات > الخصوصية > خدمات الموقع > Safari',
-                    className: 'toast-error',
-                    duration: 7000,
-                    gravity: 'top',
-                    position: 'center'
-                }).showToast();
-                return;
-            }
-
-            statusElement.textContent = 'جاري جلب الموقع...';
-            navigator.geolocation.getCurrentPosition(
-                position => {
-                    const { latitude, longitude } = position.coords;
-                    const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-                    document.getElementById(inputId).value = mapsUrl;
-                    statusElement.textContent = 'تم مشاركة الموقع بنجاح!';
-                    Toastify({
-                        text: 'تم مشاركة الموقع بنجاح!',
-                        className: 'toast-success',
-                        duration: 3000,
-                        gravity: 'top',
-                        position: 'center'
-                    }).showToast();
-                },
-                error => {
-                    let errorMessage = 'فشل مشاركة الموقع، أدخل الرابط يدويًا';
-                    if (error.code === error.PERMISSION_DENIED) {
-                        errorMessage = 'تم رفض إذن الموقع، يرجى تفعيله من إعدادات iPhone';
-                    } else if (error.code === error.POSITION_UNAVAILABLE) {
-                        errorMessage = 'معلومات الموقع غير متوفرة، حاول مرة أخرى';
-                    } else if (error.code === error.TIMEOUT) {
-                        errorMessage = 'انتهت مهلة جلب الموقع، حاول مرة أخرى';
-                    }
-                    statusElement.textContent = errorMessage;
-                    Toastify({
-                        text: errorMessage,
-                        className: 'toast-error',
-                        duration: 7000,
-                        gravity: 'top',
-                        position: 'center'
-                    }).showToast();
-                    console.error('Geolocation error:', error);
-                },
-                {
-                    timeout: 10000,
-                    maximumAge: 60000,
-                    enableHighAccuracy: true
-                }
-            );
-        }).catch(err => {
-            statusElement.textContent = 'فشل التحقق من إذن الموقع، أدخل الرابط يدويًا';
-            console.error('Permission check error:', err);
-        });
-    } else {
-        statusElement.textContent = 'جاري جلب الموقع...';
+// جلب الموقع
+function getLocation(fieldId = 'location') {
+    const locationInput = document.getElementById(fieldId);
+    const statusElement = document.getElementById(fieldId === 'location' ? 'location-status' : 'e-location-status');
+    statusElement.textContent = 'جاري جلب الموقع...';
+    if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             position => {
                 const { latitude, longitude } = position.coords;
                 const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-                document.getElementById(inputId).value = mapsUrl;
-                statusElement.textContent = 'تم مشاركة الموقع بنجاح!';
-                Toastify({
-                    text: 'تم مشاركة الموقع بنجاح!',
-                    className: 'toast-success',
-                    duration: 3000,
-                    gravity: 'top',
-                    position: 'center'
-                }).showToast();
+                locationInput.value = mapsUrl;
+                statusElement.textContent = 'تم مشاركة الموقع بنجاح';
+                statusElement.classList.replace('text-muted', 'text-success');
             },
             error => {
-                let errorMessage = 'فشل مشاركة الموقع، أدخل الرابط يدويًا';
-                if (error.code === error.PERMISSION_DENIED) {
-                    errorMessage = 'تم رفض إذن الموقع، يرجى تفعيله من إعدادات iPhone';
-                } else if (error.code === error.POSITION_UNAVAILABLE) {
-                    errorMessage = 'معلومات الموقع غير متوفرة، حاول مرة أخرى';
-                } else if (error.code === error.TIMEOUT) {
-                    errorMessage = 'انتهت مهلة جلب الموقع، حاول مرة أخرى';
-                }
-                statusElement.textContent = errorMessage;
-                Toastify({
-                    text: errorMessage,
-                    className: 'toast-error',
-                    duration: 7000,
-                    gravity: 'top',
-                    position: 'center'
-                }).showToast();
-                console.error('Geolocation error:', error);
-            },
-            {
-                timeout: 10000,
-                maximumAge: 60000,
-                enableHighAccuracy: true
+                console.error('خطأ جلب الموقع:', error.message);
+                statusElement.textContent = 'فشل مشاركة الموقع، أدخل رابط Google Maps يدويًا';
+                statusElement.classList.replace('text-muted', 'text-danger');
             }
         );
+    } else {
+        statusElement.textContent = 'المتصفح لا يدعم مشاركة الموقع';
+        statusElement.classList.replace('text-muted', 'text-danger');
     }
 }
 
-// إرسال الطلب (الدفع عند الاستلام)
+// إرسال طلب الدفع عند الاستلام
 async function sendOrder(event) {
     event.preventDefault();
-    const name = document.getElementById('name').value;
-    const phone = document.getElementById('phone').value;
-    const address = document.getElementById('address').value;
-    const location = document.getElementById('location').value;
-
-    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const order = {
-        customerName: name,
-        customerPhone: phone,
-        customerAddress: address,
-        customerLocation: location,
-        products: cart.map(item => ({
-            product: item.id,
-            quantity: item.quantity,
-            price: item.price
-        })),
-        total,
-        paymentMethod: 'cash',
-        status: 'pending'
-    };
-
-    // إرسال إلى الـ API
     try {
+        const customerName = document.getElementById('name').value;
+        const customerPhone = document.getElementById('phone').value;
+        const customerAddress = document.getElementById('address').value;
+        const customerLocation = document.getElementById('location').value;
+
+        if (!customerName || !customerPhone || !customerAddress || cart.length === 0) {
+            throw new Error('جميع الحقول مطلوبة والسلة يجب أن تكون غير فارغة');
+        }
+
+        const order = {
+            customerName,
+            customerPhone,
+            customerAddress,
+            customerLocation,
+            products: cart.map(item => ({
+                product: item.product,
+                quantity: item.quantity,
+                price: item.price
+            })),
+            total: cart.reduce((sum, item) => sum + item.quantity * item.price, 0),
+            paymentMethod: 'cash'
+        };
+
+        requestCount++;
+        console.log(`طلب fetch رقم: ${requestCount} إلى /api/orders (دفع عند الاستلام)`);
         const response = await fetch('/api/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(order)
         });
-        if (!response.ok) throw new Error('فشل تسجيل الطلب');
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('خطأ استجابة /api/orders:', errorData);
+            throw new Error(errorData.message || `فشل إنشاء الطلب (حالة: ${response.status})`);
+        }
+
         const result = await response.json();
+        console.log('تم إنشاء الطلب:', result.orderId);
+        cart = [];
+        localStorage.setItem('cart', JSON.stringify(cart));
+        updateCartDisplay();
+        bootstrap.Modal.getInstance(document.getElementById('checkout')).hide();
         Toastify({
-            text: result.message || 'تم تسجيل الطلب بنجاح!',
-            className: 'toast-success',
+            text: 'تم إرسال الطلب بنجاح',
             duration: 3000,
-            gravity: 'top',
-            position: 'center'
+            className: 'toast-success'
         }).showToast();
     } catch (error) {
-        console.error('خطأ في إرسال الطلب للوحة الإدارة:', error);
+        console.error('خطأ إرسال الطلب:', error.message);
         Toastify({
-            text: 'خطأ في إرسال الطلب للوحة الإدارة!',
-            className: 'toast-error',
+            text: `خطأ: ${error.message}`,
             duration: 3000,
-            gravity: 'top',
-            position: 'center'
+            className: 'toast-error'
         }).showToast();
-        return;
     }
-
-    // إرسال إلى واتساب
-    const orderDetails = cart.map(item => `${item.name} - ${item.quantity} × ${item.price} = ${item.price * item.quantity} جنيه`).join('\n');
-    const message = `طلب جديد\nالاسم: ${name}\nالهاتف: ${phone}\nالعنوان: ${address}\n${location ? `الموقع: ${location}\n` : ''}تفاصيل الطلب:\n${orderDetails}\nالإجمالي: ${total} جنيه\nطريقة الدفع: عند الاستلام`;
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=+201129864940&text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
-
-    Toastify({
-        text: 'جاري فتح واتساب لإرسال الطلب!',
-        className: 'toast-success',
-        duration: 3000,
-        gravity: 'top',
-        position: 'center'
-    }).showToast();
-
-    cart = [];
-    saveCart();
-    updateCart();
-    displayProducts(currentCategoryId);
-    bootstrap.Modal.getInstance(document.getElementById('checkout')).hide();
 }
 
-// إرسال الطلب (الدفع الإلكتروني)
+// إرسال طلب الدفع الإلكتروني
 async function sendElectronicOrder(event) {
     event.preventDefault();
-    const name = document.getElementById('e-name').value;
-    const phone = document.getElementById('e-phone').value;
-    const address = document.getElementById('e-address').value;
-    const location = document.getElementById('e-location').value;
-    const paymentProof = document.getElementById('payment-proof').files[0];
-
-    if (!paymentProof) {
-        Toastify({
-            text: 'يرجى رفع إثبات الدفع!',
-            className: 'toast-error',
-            duration: 3000,
-            gravity: 'top',
-            position: 'center'
-        }).showToast();
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('image', paymentProof);
-    const apiKey = 'bde613bd4475de5e00274a795091ba04';
-    document.getElementById('upload-status').textContent = 'جاري رفع الصورة...';
-
     try {
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        const customerName = document.getElementById('e-name').value;
+        const customerPhone = document.getElementById('e-phone').value;
+        const customerAddress = document.getElementById('e-address').value;
+        const customerLocation = document.getElementById('e-location').value;
+        const paymentProof = document.getElementById('payment-proof').files[0];
+
+        if (!customerName || !customerPhone || !customerAddress || !paymentProof || cart.length === 0) {
+            throw new Error('جميع الحقول وإثبات الدفع مطلوبة والسلة يجب أن تكون غير فارغة');
+        }
+
+        // التحقق من نوع الصورة
+        const validImageTypes = ['image/jpeg', 'image/png'];
+        if (!validImageTypes.includes(paymentProof.type)) {
+            throw new Error('يرجى رفع صورة بصيغة JPG أو PNG');
+        }
+
+        // ضغط الصورة
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        let compressedFile = paymentProof;
+        console.log(`حجم الصورة الأصلي: ${(paymentProof.size / 1024 / 1024).toFixed(2)} MB`);
+        if (paymentProof.size > maxSize) {
+            console.log('بدء ضغط الصورة...');
+            compressedFile = await new Promise((resolve, reject) => {
+                new Compressor(paymentProof, {
+                    quality: 0.6, // جودة الضغط (0.6 = جودة متوسطة)
+                    maxWidth: 1920, // الحد الأقصى للعرض
+                    maxHeight: 1920, // الحد الأقصى للارتفاع
+                    mimeType: 'image/jpeg', // تحويل إلى JPEG
+                    success(result) {
+                        console.log(`حجم الصورة بعد الضغط: ${(result.size / 1024 / 1024).toFixed(2)} MB`);
+                        resolve(result);
+                    },
+                    error(err) {
+                        console.error('خطأ ضغط الصورة:', err.message);
+                        reject(new Error('فشل ضغط الصورة'));
+                    }
+                });
+            });
+
+            if (compressedFile.size > maxSize) {
+                throw new Error('حجم الصورة بعد الضغط لا يزال كبيرًا، يرجى اختيار صورة أصغر');
+            }
+        }
+
+        const formData = new FormData();
+        formData.append('customerName', customerName);
+        formData.append('customerPhone', customerPhone);
+        formData.append('customerAddress', customerAddress);
+        formData.append('customerLocation', customerLocation);
+        formData.append('products', JSON.stringify(cart.map(item => ({
+            product: item.product,
+            quantity: item.quantity,
+            price: item.price
+        }))));
+        formData.append('total', cart.reduce((sum, item) => sum + item.quantity * item.price, 0));
+        formData.append('paymentMethod', 'electronic');
+        formData.append('paymentProof', compressedFile, compressedFile.name);
+
+        requestCount++;
+        console.log(`طلب fetch رقم: ${requestCount} إلى /api/orders (دفع إلكتروني)`);
+        const response = await fetch('/api/orders', {
             method: 'POST',
             body: formData
         });
-        const data = await response.json();
 
-        if (!data.success) {
-            throw new Error('فشل رفع الصورة');
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('خطأ استجابة /api/orders:', errorData);
+            throw new Error(errorData.message || `فشل إنشاء الطلب (حالة: ${response.status})`);
         }
 
-        const imageUrl = data.data.url;
-        document.getElementById('upload-status').textContent = 'تم رفع الصورة بنجاح';
-
-        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const order = {
-            customerName: name,
-            customerPhone: phone,
-            customerAddress: address,
-            customerLocation: location,
-            products: cart.map(item => ({
-                product: item.id,
-                quantity: item.quantity,
-                price: item.price
-            })),
-            total,
-            paymentMethod: 'electronic',
-            paymentProof: imageUrl,
-            status: 'pending'
-        };
-
-        // إرسال إلى الـ API
-        const orderResponse = await fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(order)
-        });
-        if (!orderResponse.ok) throw new Error('فشل تسجيل الطلب');
-        const result = await orderResponse.json();
-        Toastify({
-            text: result.message || 'تم تسجيل الطلب بنجاح!',
-            className: 'toast-success',
-            duration: 3000,
-            gravity: 'top',
-            position: 'center'
-        }).showToast();
-
-        // إرسال إلى واتساب
-        const orderDetails = cart.map(item => `${item.name} - ${item.quantity} × ${item.price} = ${item.price * item.quantity} جنيه`).join('\n');
-        const message = `طلب جديد\nالاسم: ${name}\nالهاتف: ${phone}\nالعنوان: ${address}\n${location ? `الموقع: ${location}\n` : ''}تفاصيل الطلب:\n${orderDetails}\nالإجمالي: ${total} جنيه\nطريقة الدفع: إلكتروني\nإثبات الدفع: ${imageUrl}`;
-        const encodedMessage = encodeURIComponent(message);
-        const whatsappUrl = `https://api.whatsapp.com/send?phone=+201129864940&text=${encodedMessage}`;
-        window.open(whatsappUrl, '_blank');
-
-        Toastify({
-            text: 'جاري فتح واتساب لإرسال الطلب!',
-            className: 'toast-success',
-            duration: 3000,
-            gravity: 'top',
-            position: 'center'
-        }).showToast();
-
+        const result = await response.json();
+        console.log('تم إنشاء الطلب:', result.orderId);
         cart = [];
-        saveCart();
-        updateCart();
-        displayProducts(currentCategoryId);
+        localStorage.setItem('cart', JSON.stringify(cart));
+        updateCartDisplay();
         bootstrap.Modal.getInstance(document.getElementById('checkout')).hide();
-    } catch (error) {
-        document.getElementById('upload-status').textContent = 'فشل رفع الصورة، حاول مرة أخرى';
         Toastify({
-            text: 'خطأ في إرسال الطلب!',
-            className: 'toast-error',
+            text: 'تم إرسال الطلب بنجاح',
             duration: 3000,
-            gravity: 'top',
-            position: 'center'
+            className: 'toast-success'
         }).showToast();
-        console.error('Error:', error);
+    } catch (error) {
+        console.error('خطأ إرسال الطلب:', error.message);
+        Toastify({
+            text: `خطأ: ${error.message}`,
+            duration: 3000,
+            className: 'toast-error'
+        }).showToast();
     }
 }
 
-// تهيئة الصفحة
+// البحث عن منتجات
+function setupSearch() {
+    const searchInput = document.getElementById('search-input');
+    const debouncedSearch = debounce(query => {
+        requestCount++;
+        console.log(`طلب fetch رقم: ${requestCount} إلى /api/products?search=${query}`);
+        displayProducts(query);
+    }, 500);
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim();
+        debouncedSearch(query);
+    });
+}
+
+// إغلاق القائمة المنسدلة
+function closeNavbar() {
+    const navbar = document.getElementById('navbarNav');
+    if (navbar.classList.contains('show')) {
+        bootstrap.Collapse.getInstance(navbar).hide();
+    }
+}
+
+// تهيئة
 document.addEventListener('DOMContentLoaded', () => {
     displayCategories();
     displayProducts();
-    updateCart();
-
-    document.querySelector('.cart-icon').addEventListener('click', () => {
-        document.getElementById('cart').scrollIntoView({ behavior: 'smooth' });
-        closeNavbar();
+    updateCartDisplay();
+    setupSearch();
+    document.getElementById('show-categories-btn').addEventListener('click', () => {
+        document.getElementById('categories').scrollIntoView({ behavior: 'smooth' });
     });
-
-    // إضافة حدث للبحث
-    document.getElementById('search-input')?.addEventListener('input', searchProducts);
-
-    // إضافة حدث لزر عرض الأقسام
-    document.getElementById('show-categories-btn')?.addEventListener('click', showCategories);
 });
